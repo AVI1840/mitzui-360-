@@ -457,13 +457,13 @@ const SCENARIOS: Scenario[] = [
   },
 
   // ─────────────────────────────────────────────
-  // 4. נכה כללי
+  // 4. נכות כללית
   // ─────────────────────────────────────────────
   {
     id: 'gd',
-    name: 'נכה כללי',
+    name: 'נכות כללית',
     icon: '♿',
-    profile: 'פרופיל 5 — נכה כללי 60%+',
+    profile: 'פרופיל 5 — נכות כללית 60%+',
     active: true,
     color: 'orange',
     domains: [
@@ -518,7 +518,7 @@ const SCENARIOS: Scenario[] = [
       {
         id: 'gd_voc', n: 'שיקום מקצועי', b: 'ביטוח לאומי',
         am: 'מימון לימודים + דמי מחיה',
-        ds: 'זכאות לנכה כללי — נוצל פחות מ-30% מהזכאים',
+        ds: 'זכאות לנכות כללית — נוצל פחות מ-30% מהזכאים',
         qs: [
           { id: 'gd_voc1', text: 'האם הנכות משפיעה על כושר העבודה?', at: 'boolean' },
           { id: 'gd_voc2', text: 'האם מעוניין לשקול הסבה מקצועית?', at: 'boolean' },
@@ -1657,8 +1657,8 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
         <button
           onClick={() => setShowFeedback(true)}
           title="משוב מקצועי — פיילוט"
-          className="w-14 h-14 rounded-full bg-purple-700 text-white shadow-xl hover:bg-purple-800 transition-all hover:scale-105 flex items-center justify-center text-2xl font-bold">
-          💬
+          className="flex items-center gap-2 px-5 py-3 rounded-full bg-purple-700 text-white shadow-xl hover:bg-purple-800 transition-all hover:scale-105 text-sm font-bold">
+          💬 משוב
         </button>
       </div>
 
