@@ -3,7 +3,7 @@
  * Based on: btl-domain-engine v4.1.0 + rights-decision-engine v2.1.0
  * No data persistence — every session resets on refresh (security requirement)
  */
-import React, { useState, useMemo, useCallback, Fragment } from 'react';
+import React, { useState, useMemo, useCallback, useRef, Fragment } from 'react';
 
 // ═══════════════════════════════════════════════
 // TYPES
@@ -79,6 +79,49 @@ const inMonths = (n: number) => {
 };
 
 // ═══════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════
+// ENGINE TYPES (v3.0)
+// ═══════════════════════════════════════════════
+type CondOp = '==' | '!=' | '>=' | '<=' | '>' | '<';
+interface BenefitRule {
+  id: string; name: string; scenarioIds: string[]; domainId: string;
+  confidenceBase: number; estimatedMonthly?: string;
+  conditions: { field: string; operator: CondOp; value: any; label: string }[];
+  explanation: string; action: string;
+}
+interface UnclaimedRule {
+  existingDomain: string; existingLabel: string;
+  potentialBenefits: { name: string; body: string; reason: string }[];
+}
+interface EvalResult {
+  rule: BenefitRule; confidence: number; triggered: string[];
+}
+interface AuditEntry {
+  ts: string; event: string; detail: string;
+}
+interface PilotTelemetry {
+  scenarioId: string; benefitsDetected: number; recommendedActions: number;
+  unclaimedFound: number; sessionDurationSec: number; domainsScanned: number;
+}
+
+const evalCond = (op: CondOp, actual: any, expected: any): boolean => {
+  if (actual === undefined || actual === null || actual === '') return false;
+  switch (op) {
+    case '==': return actual === expected;
+    case '!=': return actual !== expected;
+    case '>=': return Number(actual) >= Number(expected);
+    case '<=': return Number(actual) <= Number(expected);
+    case '>': return Number(actual) > Number(expected);
+    case '<': return Number(actual) < Number(expected);
+    default: return false;
+  }
+};
+const confLbl = (c: number) => c >= 0.85 ? 'גבוה' : c >= 0.7 ? 'בינוני' : 'נמוך';
+const confClr = (c: number) => c >= 0.85 ? 'text-green-700 bg-green-100' : c >= 0.7 ? 'text-amber-700 bg-amber-100' : 'text-red-700 bg-red-100';
+const confBar = (c: number) => c >= 0.85 ? 'bg-green-500' : c >= 0.7 ? 'bg-amber-500' : 'bg-red-500';
+const fmtTs = () => new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
 // SCENARIO DATA
 // ═══════════════════════════════════════════════
 const SCENARIOS: Scenario[] = [
@@ -676,6 +719,101 @@ const SCENARIOS: Scenario[] = [
 ];
 
 // ═══════════════════════════════════════════════
+
+// BENEFITS RULES ENGINE DATA
+const BENEFITS_RULES: BenefitRule[] = [
+  { id: 'br_death_grant', name: 'מענק פטירה', scenarioIds: ['ddc'], domainId: 'dg', confidenceBase: 0.92, estimatedMonthly: '10,514 ₪ (חד-פעמי)',
+    conditions: [{ field: 'dg1', operator: '==', value: true, label: 'חשבון בנק פעיל' }, { field: 'dg2', operator: '==', value: true, label: 'תשלום מלא התקבל' }],
+    explanation: 'מענק אוטומטי בגין פטירת ילד נכה', action: 'לוודא העברה אוטומטית לחשבון' },
+  { id: 'br_debt_freeze', name: 'הקפאת גבייה', scenarioIds: ['ddc'], domainId: 'dm', confidenceBase: 0.85,
+    conditions: [{ field: 'dm1', operator: '==', value: true, label: 'קיים חוב' }],
+    explanation: 'גבייה אוטומטית מוקפאת 60 יום', action: 'לתאם פגישה לסדר תשלומים' },
+  { id: 'br_income_supp', name: 'הבטחת הכנסה', scenarioIds: ['ddc'], domainId: 'is', confidenceBase: 0.78, estimatedMonthly: 'עד 3,500 ₪/חודש',
+    conditions: [{ field: 'is1', operator: '==', value: true, label: 'מקבל הבטחת הכנסה' }],
+    explanation: 'שינוי הרכב משפחה משפיע על תחשיב', action: 'לעדכן תחשיב הבטחת הכנסה' },
+  { id: 'br_mobility', name: 'ניידות — הלוואה עומדת', scenarioIds: ['ddc'], domainId: 'mo', confidenceBase: 0.75,
+    conditions: [{ field: 'mo1', operator: '==', value: true, label: 'קיימת הלוואה עומדת' }],
+    explanation: 'טיפול בהלוואה עומדת — תקופת חסד 12 חודש', action: 'לבדוק תקופת חסד ואפשרויות' },
+  { id: 'br_child_save', name: 'חיסכון לכל ילד', scenarioIds: ['ddc'], domainId: 'cs', confidenceBase: 0.88,
+    conditions: [], explanation: 'הפקדות נמשכות 3 חודשים נוספים', action: 'להדפיס טופס 5022 ולהגיש לקופה' },
+  { id: 'br_unemployment', name: 'אבטלה — התפטרות מוצדקת', scenarioIds: ['ddc'], domainId: 'ub', confidenceBase: 0.72, estimatedMonthly: 'עד 80% שכר',
+    conditions: [{ field: 'ub1', operator: '==', value: true, label: 'הפסיק לעבוד' }, { field: 'ub3', operator: '==', value: true, label: '12+ חודשי עבודה' }],
+    explanation: 'זכאות לדמי אבטלה ללא תקופת המתנה', action: 'לפתוח תביעת אבטלה מיידית' },
+  { id: 'br_rehab', name: 'שיקום מקצועי — תיקון 208', scenarioIds: ['ddc'], domainId: 'rh', confidenceBase: 0.70,
+    conditions: [{ field: 'rh2', operator: '==', value: true, label: 'מעוניין בהסבה' }],
+    explanation: 'זכאות להסבה מקצועית ומימון אקדמי', action: 'להפנות לפקיד שיקום' },
+  { id: 'br_old_age', name: 'קצבת זקנה', scenarioIds: ['ep'], domainId: 'ep_oa', confidenceBase: 0.90, estimatedMonthly: '~1,810 ₪/חודש',
+    conditions: [{ field: 'ep_oa2', operator: '>=', value: 67, label: 'גיל 67+' }, { field: 'ep_oa1', operator: '==', value: false, label: 'לא מקבל קצבה' }],
+    explanation: 'גיל זכאות ולא מגיש — פספוס רטרואקטיביות', action: 'לפתוח תביעה מיידית' },
+  { id: 'br_income_supp_elderly', name: 'השלמת הכנסה לזקנה', scenarioIds: ['ep'], domainId: 'ep_si', confidenceBase: 0.85, estimatedMonthly: '~2,000 ₪/חודש',
+    conditions: [{ field: 'ep_si1', operator: '==', value: false, label: 'לא מקבל השלמה' }, { field: 'ep_si2', operator: '<', value: 3600, label: 'הכנסה מתחת לסף' }],
+    explanation: 'שיעור מימוש 60% בלבד — פער קריטי', action: 'לפתוח תביעה מיידית' },
+  { id: 'br_nursing', name: 'גמלת סיעוד', scenarioIds: ['ep'], domainId: 'ep_nc', confidenceBase: 0.80, estimatedMonthly: '4–16 שעות/שבוע',
+    conditions: [{ field: 'ep_nc2', operator: '==', value: true, label: 'קשיים בפעולות יומיום' }],
+    explanation: 'מבחן תפקודי — לא רפואי', action: 'לפתוח תביעת סיעוד' },
+  { id: 'br_survivors', name: 'קצבת שאירים', scenarioIds: ['w'], domainId: 'w_sur', confidenceBase: 0.88, estimatedMonthly: '~1,838 ₪/חודש',
+    conditions: [{ field: 'w_sur5', operator: '==', value: false, label: 'לא הוגשה תביעה' }],
+    explanation: 'רטרואקטיביות מוגבלת ל-12 חודש', action: 'לפתוח תביעת שאירים מיידית' },
+  { id: 'br_gen_disability', name: 'קצבת נכות כללית', scenarioIds: ['gd'], domainId: 'gd_dis', confidenceBase: 0.87, estimatedMonthly: '2,718–4,711 ₪/חודש',
+    conditions: [{ field: 'gd_dis1', operator: '>=', value: 60, label: 'נכות 60%+' }, { field: 'gd_dis2', operator: '==', value: false, label: 'לא מקבל קצבה' }],
+    explanation: 'זכאי לקצבת נכות ולא מגיש', action: 'לפתוח תביעה מיידית' },
+  { id: 'br_special_services', name: 'שירותים מיוחדים', scenarioIds: ['gd'], domainId: 'gd_sp', confidenceBase: 0.82,
+    conditions: [{ field: 'gd_sp2', operator: '==', value: true, label: 'זקוק לעזרה' }, { field: 'gd_sp1', operator: '==', value: false, label: 'לא מקבל שירותים מיוחדים' }],
+    explanation: 'פחות מ-30% ממשים — פער קריטי', action: 'לפתוח תביעה נפרדת מיידית' },
+  { id: 'br_child_disability', name: 'קצבת ילד נכה', scenarioIds: ['hc'], domainId: 'hc_dis', confidenceBase: 0.85, estimatedMonthly: 'עד ~3,400 ₪/חודש',
+    conditions: [{ field: 'hc_dis3', operator: '==', value: false, label: 'לא מקבל קצבה' }],
+    explanation: 'ילד עם מוגבלות לא ממצה קצבה', action: 'לפתוח תביעה מיידית' },
+  { id: 'br_age18_transition', name: 'מעבר גיל 18', scenarioIds: ['hc'], domainId: 'hc_18', confidenceBase: 0.92,
+    conditions: [{ field: 'hc_18_1', operator: '>=', value: 16, label: 'גיל 16+' }, { field: 'hc_18_2', operator: '==', value: false, label: 'לא הוגשה נכות כללית' }],
+    explanation: 'מעבר לא אוטומטי — עלול לאבד קצבה', action: 'להגיש נכות כללית לפני גיל 18' },
+  { id: 'br_unemp', name: 'דמי אבטלה', scenarioIds: ['u'], domainId: 'u_unemp', confidenceBase: 0.83, estimatedMonthly: 'עד 80% שכר',
+    conditions: [{ field: 'u_unemp2', operator: '>=', value: 12, label: '12+ חודשי עבודה' }, { field: 'u_unemp3', operator: '==', value: false, label: 'לא הוגשה תביעה' }],
+    explanation: 'זכאי לדמי אבטלה ולא מגיש', action: 'לפתוח תביעה מיידית' },
+  { id: 'br_work_injury', name: 'נפגע עבודה', scenarioIds: ['u'], domainId: 'u_inj', confidenceBase: 0.90,
+    conditions: [{ field: 'u_inj1', operator: '==', value: true, label: 'אירעה תאונת עבודה' }, { field: 'u_inj2', operator: '==', value: false, label: 'לא הוגשה תביעה' }],
+    explanation: 'תאונת עבודה ללא תביעה — נפרד מאבטלה', action: 'לפתוח תביעת נפגע עבודה מיידית' },
+];
+
+// UNCLAIMED RIGHTS MATRIX
+const UNCLAIMED_MATRIX: UnclaimedRule[] = [
+  {
+    existingDomain: 'gd_dis',
+    existingLabel: 'קצבת נכות כללית',
+    potentialBenefits: [
+      { name: 'שירותים מיוחדים (שר"מ)', body: 'ביטוח לאומי', reason: 'פחות מ-30% ממשים' },
+      { name: 'הנחת ארנונה', body: 'רשות מקומית', reason: 'עד 70% הנחה לנכים' },
+      { name: 'פטור ממס הכנסה', body: 'רשות המסים', reason: 'נכות 100% — פטור מלא' },
+    ],
+  },
+  {
+    existingDomain: 'ep_oa',
+    existingLabel: 'קצבת זקנה',
+    potentialBenefits: [
+      { name: 'השלמת הכנסה', body: 'ביטוח לאומי', reason: '60% מימוש בלבד' },
+      { name: 'גמלת סיעוד', body: 'ביטוח לאומי', reason: 'לבדוק תפקוד ADL' },
+      { name: 'הנחת חשמל', body: 'חברת חשמל', reason: '~400 ₪/שנה' },
+    ],
+  },
+  {
+    existingDomain: 'w_sur',
+    existingLabel: 'קצבת שאירים',
+    potentialBenefits: [
+      { name: 'מענק פטירה', body: 'ביטוח לאומי', reason: '10,514 ₪ חד-פעמי' },
+      { name: 'שיקום מקצועי', body: 'ביטוח לאומי', reason: 'תיקון 208 — הסבה מקצועית' },
+    ],
+  },
+  {
+    existingDomain: 'hc_dis',
+    existingLabel: 'קצבת ילד נכה',
+    potentialBenefits: [
+      { name: 'סל שירותים משרד הרווחה', body: 'משרד הרווחה', reason: '40% לא ממצות' },
+      { name: 'נקודות זיכוי מס (6090)', body: 'רשות המסים', reason: 'טופס 127 להורה לילד נכה' },
+      { name: 'מעבר גיל 18', body: 'ביטוח לאומי', reason: 'לא אוטומטי — חובה הגשה' },
+    ],
+  },
+];
+
+
 // UI CONSTANTS
 // ═══════════════════════════════════════════════
 const STEPS = ['תרחיש', 'סריקה', 'שאלות', 'סיכום'];
@@ -901,6 +1039,17 @@ export default function App() {
   const [feedbackItems, setFeedbackItems] = useState<FeedbackEntry[]>([]);
   const [showFeedback, setShowFeedback] = useState(false);
 
+  const sessionStartRef = useRef(Date.now());
+  const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
+  const [showAudit, setShowAudit] = useState(false);
+  const [staffNotes, setStaffNotes] = useState('');
+  const [showXai, setShowXai] = useState(true);
+  const [auditCopied, setAuditCopied] = useState(false);
+
+  const addAudit = useCallback((event: string, detail: string) => {
+    setAuditLog(prev => [...prev, { ts: fmtTs(), event, detail }]);
+  }, []);
+
   const scen = useMemo(() => SCENARIOS.find(s => s.id === scenId) || null, [scenId]);
   const allDoms = scen?.domains || [];
   const activeDoms = useMemo(() => allDoms.filter(d => rel(domSt[d.id])), [allDoms, domSt]);
@@ -955,11 +1104,56 @@ export default function App() {
     return res;
   }, [activeDoms]);
 
-  const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })), []);
+  
+  // ═══ Rules Engine Evaluation ═══
+  const evalResults = useMemo<EvalResult[]>(() => {
+    if (!scen) return [];
+    return BENEFITS_RULES
+      .filter(r => r.scenarioIds.includes(scen.id))
+      .map(rule => {
+        const triggered: string[] = [];
+        let matchCount = 0;
+        for (const c of rule.conditions) {
+          if (evalCond(c.operator, ans[c.field], c.value)) {
+            matchCount++;
+            triggered.push(c.label);
+          }
+        }
+        const ratio = rule.conditions.length > 0 ? matchCount / rule.conditions.length : 1;
+        const confidence = Math.round(rule.confidenceBase * ratio * 100) / 100;
+        return { rule, confidence, triggered };
+      })
+      .filter(e => e.confidence > 0.3)
+      .sort((a, b) => b.confidence - a.confidence);
+  }, [scen, ans]);
+
+  // ═══ Unclaimed Rights Detection ═══
+  const unclaimed = useMemo(() => {
+    if (!scen) return [];
+    const activeDomIds = new Set(activeDoms.map(d => d.id));
+    return UNCLAIMED_MATRIX
+      .filter(u => activeDomIds.has(u.existingDomain))
+      .flatMap(u => u.potentialBenefits.map(pb => ({ ...pb, source: u.existingLabel })));
+  }, [scen, activeDoms]);
+
+  // ═══ Pilot Telemetry ═══
+  const telemetry = useMemo<PilotTelemetry | null>(() => {
+    if (!scen) return null;
+    return {
+      scenarioId: scen.id,
+      benefitsDetected: evalResults.length,
+      recommendedActions: actions.length,
+      unclaimedFound: unclaimed.length,
+      sessionDurationSec: Math.round((Date.now() - sessionStartRef.current) / 1000),
+      domainsScanned: activeDoms.length,
+    };
+  }, [scen, evalResults, actions, unclaimed, activeDoms]);
+
+const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })), []);
   const sd = useCallback((id: string, v: DS) => setDomSt(p => ({ ...p, [id]: v })), []);
 
   const doReset = () => {
-    setStep(0); setScenId(null); setDomSt({}); setAns({}); setDi(0); setResetPending(false);
+    setStep(0); setScenId(null); setDomSt({}); setAns({}); setDi(0); setResetPending(false); setAuditLog([]); setStaffNotes(''); sessionStartRef.current = Date.now();
   };
 
   const today = new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -1294,10 +1488,143 @@ export default function App() {
               </div>
             </div>
 
-            {/* Footer disclaimer */}
+            
+            {/* XAI BENEFIT CARDS */}
+            {evalResults.length > 0 && (
+              <div className="mb-6 print-summary">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-bold text-indigo-900 border-b-2 border-indigo-200 pb-2">
+                    זיהוי זכאות — מנוע חכמי ({evalResults.length})
+                  </h3>
+                  <button onClick={() => setShowXai(!showXai)} className="no-print text-xs text-indigo-600 hover:underline">
+                    {showXai ? 'הסתר פירוט' : 'הצג פירוט'}
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {evalResults.map((ev) => (
+                    <div key={ev.rule.id} className="bg-white rounded-xl border border-indigo-200 p-4 shadow-sm">
+                      <div className="flex items-start justify-between mb-2 flex-wrap gap-2">
+                        <div className="flex-1">
+                          <h4 className="font-bold text-sm text-gray-900">{ev.rule.name}</h4>
+                          {ev.rule.estimatedMonthly && <span className="text-xs text-blue-700 font-semibold">{ev.rule.estimatedMonthly}</span>}
+                        </div>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${confClr(ev.confidence)}`}>
+                          סיכוי: {confLbl(ev.confidence)} ({Math.round(ev.confidence * 100)}%)
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                        <div className={`h-2 rounded-full transition-all ${confBar(ev.confidence)}`} style={{ width: `${Math.round(ev.confidence * 100)}%` }} />
+                      </div>
+                      {showXai && (
+                        <div className="mt-2 space-y-1.5">
+                          <p className="text-xs text-gray-600"><strong>הסבר:</strong> {ev.rule.explanation}</p>
+                          {ev.triggered.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              <span className="text-xs text-gray-500">כללים:</span>
+                              {ev.triggered.map((t, j) => <span key={j} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200">{t}</span>)}
+                            </div>
+                          )}
+                          <p className="text-xs text-indigo-800 font-medium">פעולה: {ev.rule.action}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* UNCLAIMED RIGHTS */}
+            {unclaimed.length > 0 && (
+              <div className="mb-6 print-summary">
+                <h3 className="text-base font-bold mb-3 text-purple-900 border-b-2 border-purple-200 pb-2">
+                  זכויות לא ממוצות ({unclaimed.length})
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {unclaimed.map((u, i) => (
+                    <div key={i} className="bg-purple-50 border border-purple-200 rounded-xl p-3">
+                      <div className="flex items-start gap-2">
+                        <span className="text-purple-600 text-lg shrink-0">⚠️</span>
+                        <div>
+                          <p className="font-bold text-sm text-purple-900">{u.name}</p>
+                          <p className="text-xs text-purple-700">{u.body}</p>
+                          <p className="text-xs text-purple-600 mt-1">סיבה: {u.reason}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">מקור: {u.source}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* PILOT ANALYTICS */}
+            {telemetry && (
+              <div className="mb-6 print-summary">
+                <h3 className="text-base font-bold mb-3 text-cyan-900 border-b-2 border-cyan-200 pb-2">
+                  אנליטיקת פיילוט
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { label: 'זכאויות שזוהו', value: telemetry.benefitsDetected, color: 'text-blue-700' },
+                    { label: 'פעולות מומלצות', value: telemetry.recommendedActions, color: 'text-green-700' },
+                    { label: 'לא ממוצות', value: telemetry.unclaimedFound, color: 'text-purple-700' },
+                    { label: 'תחומים נסרקו', value: telemetry.domainsScanned, color: 'text-teal-700' },
+                    { label: 'משך פגישה (שניות)', value: telemetry.sessionDurationSec, color: 'text-gray-700' },
+                  ].map((m, i) => (
+                    <div key={i} className="bg-white rounded-lg p-3 border border-cyan-200 text-center">
+                      <div className={`text-2xl font-bold ${m.color}`}>{m.value}</div>
+                      <div className="text-xs text-gray-500 mt-1">{m.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* STAFF AUDIT LOG + NOTES */}
+            <div className="mb-6 print-summary">
+              <h3 className="text-base font-bold mb-3 text-gray-800 border-b-2 border-gray-300 pb-2">
+                תיעוד פקיד + הערות
+              </h3>
+              <textarea
+                value={staffNotes}
+                onChange={e => setStaffNotes(e.target.value)}
+                rows={3}
+                placeholder="הערות פקיד לתיעוד התיק..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-right resize-none focus:ring-2 focus:ring-blue-500 outline-none mb-3 no-print"
+              />
+              {staffNotes && <p className="hidden print:block text-sm text-gray-700 mb-3 whitespace-pre-wrap">הערות: {staffNotes}</p>}
+              <button
+                onClick={() => {
+                  const lines = [
+                    '=== יומן ביקורת מיצוי 360 ===',
+                    'תרחיש: ' + (scen?.name || ''),
+                    'תאריך: ' + today,
+                    '',
+                    'פעולות (' + actions.length + '):',
+                    ...actions.map((a,i) => (i+1) + '. [' + uLbl(a.urg) + '] ' + a.text),
+                    '',
+                    'זכאויות שזוהו (' + evalResults.length + '):',
+                    ...evalResults.map(e => '- ' + e.rule.name + ' (' + Math.round(e.confidence*100) + '%)'),
+                    '',
+                    'לא ממוצות (' + unclaimed.length + '):',
+                    ...unclaimed.map(u => '- ' + u.name + ' (' + u.body + ')'),
+                    '',
+                    'הערות פקיד:',
+                    staffNotes || '(ללא)',
+                    '',
+                    '=== סוף יומן ===',
+                  ].join('\n');
+                  navigator.clipboard.writeText(lines).then(() => { setAuditCopied(true); setTimeout(() => setAuditCopied(false), 2500); });
+                }}
+                className={`no-print w-full py-2.5 rounded-xl text-sm font-bold transition-colors ${auditCopied ? 'bg-green-600 text-white' : 'bg-gray-800 text-white hover:bg-gray-900'}`}>
+                {auditCopied ? '✓ הועתק ללוח!' : 'ייצא יומן ביקורת ללוח'}
+              </button>
+            </div>
+
+{/* Footer disclaimer */}
             <div className="border-t border-gray-200 pt-4 text-xs text-gray-400 print-summary">
               <p>⚠️ <strong>אמת פרטים מעודכנים ב-btl.gov.il או *6050 לפני הגשה.</strong></p>
-              <p className="mt-1">מיצוי 360 v2.0 | btl-domain-engine v4.1.0 | {today} | אין שמירת מידע — כל הנתונים נמחקים בסגירת הדף</p>
+              <p className="mt-1">מיצוי 360 v3.0 | btl-domain-engine v4.1.0 | {today} | אין שמירת מידע — כל הנתונים נמחקים בסגירת הדף</p>
             </div>
 
             {/* Nav buttons */}
