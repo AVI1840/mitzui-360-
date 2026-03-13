@@ -1069,6 +1069,19 @@ export default function App() {
     return activeDoms.length > 0;
   }, [activeDoms, ans]);
 
+  const missingFields = useMemo(() => {
+    const missing: { domName: string; domIdx: number; qText: string }[] = [];
+    activeDoms.forEach((dom, idx) => {
+      const qs = dom.qs.filter(q => !q.showIf || q.showIf(ans));
+      for (const q of qs) {
+        if (ans[q.id] === undefined || ans[q.id] === '') {
+          missing.push({ domName: dom.n, domIdx: idx, qText: q.text });
+        }
+      }
+    });
+    return missing;
+  }, [activeDoms, ans]);
+
   const actions = useMemo(() => {
     const res: { urg: Urg; text: string; tag: string }[] = [];
     for (const dom of activeDoms) {
@@ -1365,10 +1378,26 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
                       הבא ←
                     </button>
                   ) : (
-                    <button disabled={!allAnswered} onClick={() => setStep(3)}
-                      className={`px-8 py-3 rounded-xl font-bold text-base transition-colors ${allAnswered ? 'bg-green-600 text-white hover:bg-green-700 shadow-md' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
-                      לסיכום ←
-                    </button>
+                    <div className="flex flex-col items-end gap-2">
+                      <button disabled={!allAnswered} onClick={() => setStep(3)}
+                        className={`px-8 py-3 rounded-xl font-bold text-base transition-colors ${allAnswered ? 'bg-green-600 text-white hover:bg-green-700 shadow-md' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                        לסיכום ←
+                      </button>
+                      {!allAnswered && missingFields.length > 0 && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 w-full max-w-md animate-fade-in">
+                          <p className="text-xs font-bold text-red-800 mb-2">⚠️ שדות חסרים ({missingFields.length}):</p>
+                          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                            {missingFields.map((m, i) => (
+                              <button key={i} onClick={() => setDi(m.domIdx)}
+                                className="w-full text-right flex items-start gap-2 text-xs hover:bg-red-100 rounded-lg p-1.5 transition-colors">
+                                <span className="shrink-0 w-2 h-2 rounded-full bg-red-400 mt-1" />
+                                <span className="text-red-700"><strong>{m.domName}:</strong> {m.qText}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </>
