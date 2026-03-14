@@ -871,6 +871,32 @@ const sevLabel: Record<FeedbackSeverity, string> = {
   minor: '🟢 מינורי',
 };
 
+// ═══════════════════════════════════════════════
+// GOOGLE SHEET FEEDBACK INTEGRATION
+// ═══════════════════════════════════════════════
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbwD8CMFoP5XoOwRLwK_OxMMOFKF8fS2CRpbJkNdOHjbnJIepkOLzlGrg3GQNGRqbwB6bA/exec";
+const APP_NAME = "מיצוי 360";
+
+async function sendFeedback({ name, category, severity, text, page }: {
+  name?: string; category?: string; severity?: string; text: string; page?: string;
+}) {
+  try {
+    await fetch(SHEET_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        app: APP_NAME,
+        name: name || "אנונימי",
+        category: category || "כללי",
+        severity: severity || "—",
+        text: text,
+        page: page || window.location.pathname,
+      }),
+    });
+  } catch (_) { /* silent — no-cors */ }
+}
+
 function FeedbackModal({
   items, scenName, onAdd, onClose,
 }: {
@@ -888,12 +914,19 @@ function FeedbackModal({
 
   const submit = () => {
     if (!desc.trim()) return;
-    onAdd({
+    const entry: FeedbackEntry = {
       id: Date.now(), category: cat, severity: sev,
       screen: scenName || 'כללי',
       description: desc.trim(),
       suggestion: sugg.trim(),
       ts: new Date().toLocaleTimeString('he-IL'),
+    };
+    onAdd(entry);
+    sendFeedback({
+      category: catLabel[cat],
+      severity: sevLabel[sev],
+      text: entry.description + (entry.suggestion ? ` | הצעה: ${entry.suggestion}` : ''),
+      page: scenName || 'כללי',
     });
     setDesc(''); setSugg(''); setTab('list');
   };
