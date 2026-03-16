@@ -258,7 +258,7 @@ const SCENARIOS: Scenario[] = [
     name: 'קשיש/ה — הכנסה נמוכה',
     icon: '🏠',
     profile: 'פרופיל 1 — קשיש 67+ לבד, הכנסה נמוכה',
-    active: true,
+    active: false,
     color: 'green',
     domains: [
       {
@@ -375,7 +375,7 @@ const SCENARIOS: Scenario[] = [
     name: 'שכול — אלמן/ה',
     icon: '🕊️',
     profile: 'פרופיל 2 — אלמנה/אלמן 55–65',
-    active: true,
+    active: false,
     color: 'purple',
     domains: [
       {
@@ -464,7 +464,7 @@ const SCENARIOS: Scenario[] = [
     name: 'נכות כללית',
     icon: '♿',
     profile: 'פרופיל 5 — נכות כללית 60%+',
-    active: false,
+    active: true,
     color: 'orange',
     domains: [
       {
@@ -560,7 +560,7 @@ const SCENARIOS: Scenario[] = [
     name: 'הורה לילד נכה',
     icon: '👨‍👩‍👧',
     profile: 'פרופיל 3 — הורה לילד עם מוגבלות',
-    active: false,
+    active: true,
     color: 'teal',
     domains: [
       {
@@ -1255,24 +1255,49 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
         {step === 0 && (
           <section className="animate-fade-in">
             {/* ── הקדמה מקצועית ── */}
-            <div className="mb-8 bg-white border border-blue-200 rounded-2xl p-6 shadow-sm">
-              <h2 className="text-xl font-bold text-blue-900 mb-3">מיצוי 360 — כלי מיצוי זכויות לפקידי ביטוח לאומי</h2>
-              <p className="text-sm text-gray-700 leading-relaxed mb-3">
-                מערכת מיצוי 360 נועדה לסייע לפקידי ביטוח לאומי לזהות את מלוא הזכויות המגיעות למבוטח, בהתאם לאירוע החיים שלו.
-                המערכת מבוססת על מנוע כללים מקצועי (<span className="font-mono text-xs">btl-domain-engine</span>) ומכסה תחומים כגון קצבאות, מענקים, הבטחת הכנסה, סיעוד, ניידות, שיקום מקצועי וזכויות נלוות.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-                  <span className="font-bold text-blue-800">🎯 המטרה</span>
-                  <p className="text-xs text-blue-700 mt-1">מיצוי מלא של זכויות — לא לפספס אף זכאות. זיהוי פערים, מלכודות וזכויות נלוות.</p>
+            <div className="mb-8 rounded-2xl overflow-hidden shadow-sm border border-gray-200">
+              <div className="bg-gradient-to-l from-blue-900 to-blue-700 px-6 py-5 text-white">
+                <h2 className="text-xl font-bold mb-1">ברוכים הבאים למיצוי 360</h2>
+                <p className="text-blue-200 text-sm">כלי סיוע מקצועי לפקידי ביטוח לאומי — מיצוי זכויות מלא במקרים מורכבים</p>
+              </div>
+              <div className="bg-white px-6 py-5">
+                <p className="text-sm text-gray-700 leading-relaxed mb-4">
+                  המערכת נועדה לסייע לפקידים לזהות את <strong>מלוא הזכויות</strong> המגיעות למבוטח, עם דגש על מקרים מורכבים הזקוקים לתמיכה וסיוע מיוחד.
+                  המערכת מנחה אותך שלב אחר שלב — מזיהוי התרחיש, דרך סריקת תחומים ושאלות ממוקדות, ועד לסיכום פעולות מוכן להדפסה ולתיעוד תיק.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div className="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+                    <span className="text-lg">1️⃣</span>
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">בחר תרחיש</p>
+                      <p className="text-xs text-gray-500">לפי אירוע החיים של המבוטח</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+                    <span className="text-lg">2️⃣</span>
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">סרוק תחומים</p>
+                      <p className="text-xs text-gray-500">סמן רלוונטיות לכל תחום</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+                    <span className="text-lg">3️⃣</span>
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">ענה על שאלות</p>
+                      <p className="text-xs text-gray-500">שאלות ממוקדות לכל תחום</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
+                    <span className="text-lg">4️⃣</span>
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">קבל סיכום</p>
+                      <p className="text-xs text-gray-500">פעולות, אזהרות, זכויות נלוות</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-                  <span className="font-bold text-blue-800">📋 הדרך</span>
-                  <p className="text-xs text-blue-700 mt-1">בחר תרחיש → סרוק תחומים → ענה על שאלות ממוקדות → קבל סיכום פעולות מוכן להדפסה ולתיעוד.</p>
-                </div>
-                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
-                  <span className="font-bold text-blue-800">🔒 אבטחה</span>
-                  <p className="text-xs text-blue-700 mt-1">אין שמירת מידע. כל הנתונים נמחקים בסגירת הדף. אין צורך בהתחברות.</p>
+                <div className="mt-4 flex items-center gap-2 text-xs text-gray-400">
+                  <span>🔒</span>
+                  <span>אין שמירת מידע — כל הנתונים נמחקים בסגירת הדף. אין צורך בהתחברות.</span>
                 </div>
               </div>
             </div>
