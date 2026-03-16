@@ -816,7 +816,7 @@ const UNCLAIMED_MATRIX: UnclaimedRule[] = [
 
 // UI CONSTANTS
 // ═══════════════════════════════════════════════
-const STEPS = ['תרחיש', 'סריקה', 'שאלות', 'סיכום'];
+const STEPS = ['תרחיש', 'סריקת פקיד', 'בירור מול משפחה', 'סיכום והנגשה'];
 const uLbl = (u: Urg) => u === 'urgent' ? 'דחוף' : u === 'within30' ? 'תוך 30 יום' : 'לתכנון';
 const uClr = (u: Urg) =>
   u === 'urgent' ? 'bg-red-100 text-red-800 border-red-300' :
@@ -1358,9 +1358,9 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
           <section>
             <div className="flex items-center gap-3 mb-1">
               <span className="text-2xl">{scen.icon}</span>
-              <h2 className="text-lg font-bold text-gray-800">שלב 1 — סריקה ראשונית: {scen.name}</h2>
+              <h2 className="text-lg font-bold text-gray-800">שלב 1 — סריקת פקיד: {scen.name}</h2>
             </div>
-            <p className="text-sm text-gray-500 mb-5">סמן לכל תחום: רלוונטי / לא רלוונטי / לבדיקה</p>
+            <p className="text-sm text-gray-500 mb-5">בדוק את התחומים הרלוונטיים למבוטח וסמן לכל תחום: רלוונטי / לא רלוונטי / לבדיקה</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {allDoms.map(d => {
                 const v = domSt[d.id];
@@ -1394,14 +1394,14 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
             <div className="mt-6 flex justify-start">
               <button disabled={!allSelected} onClick={() => { setDi(0); setStep(2); }}
                 className={`px-8 py-3 rounded-xl font-bold text-base transition-colors ${allSelected ? 'bg-blue-700 text-white hover:bg-blue-800 shadow-md' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
-                המשך לשאלות ←
+                המשך לבירור מול משפחה ←
               </button>
             </div>
           </section>
         )}
 
         {/* ══════════════════════════════════════
-            SCREEN 2 — שאלות ממוקדות
+            SCREEN 2 — בירור מול משפחה
         ══════════════════════════════════════ */}
         {step === 2 && scen && (
           <section>
@@ -1412,6 +1412,15 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
               </div>
             ) : (
               <>
+                {/* Banner — בירור מול משפחה */}
+                <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-3">
+                  <span className="text-xl">👨‍👩‍👧</span>
+                  <div>
+                    <p className="text-sm font-bold text-blue-900">שלב בירור מול המשפחה</p>
+                    <p className="text-xs text-blue-700">שאלות אלו נועדו לברר פרטים ישירות מול המבוטח או בני משפחתו. ענה לפי המידע שנמסר בפגישה.</p>
+                  </div>
+                </div>
+
                 <div className="mb-5">
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="text-base font-bold text-gray-800">{curDom?.n}</h2>
@@ -1487,7 +1496,7 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
                     <div className="flex flex-col items-end gap-2">
                       <button onClick={() => { addAudit('סיכום', missingFields.length > 0 ? `התקדם לסיכום עם ${missingFields.length} שדות חסרים` : 'התקדם לסיכום — כל השדות מלאים'); setStep(3); }}
                         className="px-8 py-3 rounded-xl font-bold text-base transition-colors bg-green-600 text-white hover:bg-green-700 shadow-md">
-                        לסיכום ←
+                        לסיכום והנגשה ←
                       </button>
                       {missingFields.length > 0 && (
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 w-full max-w-md animate-fade-in">
@@ -1512,7 +1521,7 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
         )}
 
         {/* ══════════════════════════════════════
-            SCREEN 3 — סיכום ופעולות
+            SCREEN 3 — סיכום, הנגשה וקידום
         ══════════════════════════════════════ */}
         {step === 3 && scen && (
           <section>
@@ -1526,8 +1535,8 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
             {/* Screen header */}
             <div className="no-print flex items-center justify-between mb-5 flex-wrap gap-3">
               <div>
-                <h2 className="text-lg font-bold text-gray-800">סיכום מיצוי — {scen.name}</h2>
-                <p className="text-sm text-gray-500">{today} | מוכן להדפסה</p>
+                <h2 className="text-lg font-bold text-gray-800">סיכום, הנגשה וקידום — {scen.name}</h2>
+                <p className="text-sm text-gray-500">{today} | מוכן להדפסה ולהנגשה למשפחה</p>
               </div>
               <div className="flex gap-2">
                 {urgentCount > 0 && (
