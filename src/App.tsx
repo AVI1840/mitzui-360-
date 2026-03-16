@@ -464,7 +464,7 @@ const SCENARIOS: Scenario[] = [
     name: 'נכות כללית',
     icon: '♿',
     profile: 'פרופיל 5 — נכות כללית 60%+',
-    active: true,
+    active: false,
     color: 'orange',
     domains: [
       {
@@ -560,7 +560,7 @@ const SCENARIOS: Scenario[] = [
     name: 'הורה לילד נכה',
     icon: '👨‍👩‍👧',
     profile: 'פרופיל 3 — הורה לילד עם מוגבלות',
-    active: true,
+    active: false,
     color: 'teal',
     domains: [
       {
@@ -653,7 +653,7 @@ const SCENARIOS: Scenario[] = [
     name: 'פיטורין / אבטלה',
     icon: '💼',
     profile: 'פרופיל 4 — עובד שפוטר/נפגע בעבודה',
-    active: true,
+    active: false,
     color: 'red',
     domains: [
       {
@@ -1254,10 +1254,34 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
         ══════════════════════════════════════ */}
         {step === 0 && (
           <section className="animate-fade-in">
+            {/* ── הקדמה מקצועית ── */}
+            <div className="mb-8 bg-white border border-blue-200 rounded-2xl p-6 shadow-sm">
+              <h2 className="text-xl font-bold text-blue-900 mb-3">מיצוי 360 — כלי מיצוי זכויות לפקידי ביטוח לאומי</h2>
+              <p className="text-sm text-gray-700 leading-relaxed mb-3">
+                מערכת מיצוי 360 נועדה לסייע לפקידי ביטוח לאומי לזהות את מלוא הזכויות המגיעות למבוטח, בהתאם לאירוע החיים שלו.
+                המערכת מבוססת על מנוע כללים מקצועי (<span className="font-mono text-xs">btl-domain-engine</span>) ומכסה תחומים כגון קצבאות, מענקים, הבטחת הכנסה, סיעוד, ניידות, שיקום מקצועי וזכויות נלוות.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                  <span className="font-bold text-blue-800">🎯 המטרה</span>
+                  <p className="text-xs text-blue-700 mt-1">מיצוי מלא של זכויות — לא לפספס אף זכאות. זיהוי פערים, מלכודות וזכויות נלוות.</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                  <span className="font-bold text-blue-800">📋 הדרך</span>
+                  <p className="text-xs text-blue-700 mt-1">בחר תרחיש → סרוק תחומים → ענה על שאלות ממוקדות → קבל סיכום פעולות מוכן להדפסה ולתיעוד.</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100">
+                  <span className="font-bold text-blue-800">🔒 אבטחה</span>
+                  <p className="text-xs text-blue-700 mt-1">אין שמירת מידע. כל הנתונים נמחקים בסגירת הדף. אין צורך בהתחברות.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── תרחישים פעילים (פיילוט) ── */}
             <h2 className="text-lg font-bold mb-1 text-gray-800">בחר תרחיש</h2>
-            <p className="text-sm text-gray-500 mb-5">6 תרחישים מובנים לפי פרופילים קריטיים מ-btl-domain-engine</p>
+            <p className="text-sm text-gray-500 mb-4">{SCENARIOS.filter(s => s.active).length} תרחישים פעילים בפיילוט</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {SCENARIOS.map(s => (
+              {SCENARIOS.filter(s => s.active).map(s => (
                 <button
                   key={s.id}
                   onClick={() => { setScenId(s.id); setDomSt({}); setAns({}); setDi(0); setStep(1); }}
@@ -1272,6 +1296,30 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
                 </button>
               ))}
             </div>
+
+            {/* ── תרחישים להמשך ── */}
+            {SCENARIOS.filter(s => !s.active).length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-base font-bold mb-1 text-gray-500">תרחישים נוספים — להמשך</h3>
+                <p className="text-xs text-gray-400 mb-4">תרחישים אלו יופעלו בגרסאות הבאות</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 opacity-50">
+                  {SCENARIOS.filter(s => !s.active).map(s => (
+                    <div
+                      key={s.id}
+                      className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-5 text-right cursor-default">
+                      <div className="flex items-start justify-between mb-2">
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-300 text-gray-600">להמשך</span>
+                        <span className="text-2xl grayscale">{s.icon}</span>
+                      </div>
+                      <h3 className="font-bold text-base text-gray-500 mb-1">{s.name}</h3>
+                      <p className="text-xs text-gray-400">{s.profile}</p>
+                      <p className="text-xs text-gray-300 mt-2">{s.domains.length} תחומים</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
               <strong>הוראות שימוש:</strong> בחר תרחיש לפי אירוע החיים של המבוטח. המערכת תנחה אותך שלב אחר שלב. הפלט מוכן להדפסה ולתיעוד תיק.
             </div>
@@ -1412,19 +1460,19 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
                     </button>
                   ) : (
                     <div className="flex flex-col items-end gap-2">
-                      <button disabled={!allAnswered} onClick={() => setStep(3)}
-                        className={`px-8 py-3 rounded-xl font-bold text-base transition-colors ${allAnswered ? 'bg-green-600 text-white hover:bg-green-700 shadow-md' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+                      <button onClick={() => { addAudit('סיכום', missingFields.length > 0 ? `התקדם לסיכום עם ${missingFields.length} שדות חסרים` : 'התקדם לסיכום — כל השדות מלאים'); setStep(3); }}
+                        className="px-8 py-3 rounded-xl font-bold text-base transition-colors bg-green-600 text-white hover:bg-green-700 shadow-md">
                         לסיכום ←
                       </button>
-                      {!allAnswered && missingFields.length > 0 && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl p-3 w-full max-w-md animate-fade-in">
-                          <p className="text-xs font-bold text-red-800 mb-2">⚠️ שדות חסרים ({missingFields.length}):</p>
+                      {missingFields.length > 0 && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 w-full max-w-md animate-fade-in">
+                          <p className="text-xs font-bold text-amber-800 mb-2">⚠️ שדות שלא מולאו ({missingFields.length}) — ניתן להמשיך, אך מומלץ להשלים:</p>
                           <div className="space-y-1.5 max-h-40 overflow-y-auto">
                             {missingFields.map((m, i) => (
                               <button key={i} onClick={() => setDi(m.domIdx)}
-                                className="w-full text-right flex items-start gap-2 text-xs hover:bg-red-100 rounded-lg p-1.5 transition-colors">
-                                <span className="shrink-0 w-2 h-2 rounded-full bg-red-400 mt-1" />
-                                <span className="text-red-700"><strong>{m.domName}:</strong> {m.qText}</span>
+                                className="w-full text-right flex items-start gap-2 text-xs hover:bg-amber-100 rounded-lg p-1.5 transition-colors">
+                                <span className="shrink-0 w-2 h-2 rounded-full bg-amber-400 mt-1" />
+                                <span className="text-amber-700"><strong>{m.domName}:</strong> {m.qText}</span>
                               </button>
                             ))}
                           </div>
