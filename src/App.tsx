@@ -1276,14 +1276,14 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
                   <div className="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
                     <span className="text-lg">2️⃣</span>
                     <div>
-                      <p className="text-xs font-bold text-gray-800">סרוק תחומים</p>
+                      <p className="text-xs font-bold text-gray-800">מפה תחומים</p>
                       <p className="text-xs text-gray-500">סמן רלוונטיות לכל תחום</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3 bg-slate-50 rounded-xl p-3">
                     <span className="text-lg">3️⃣</span>
                     <div>
-                      <p className="text-xs font-bold text-gray-800">ענה על שאלות</p>
+                      <p className="text-xs font-bold text-gray-800">בדיקה מקיפה</p>
                       <p className="text-xs text-gray-500">שאלות ממוקדות לכל תחום</p>
                     </div>
                   </div>
@@ -1391,11 +1391,16 @@ const sa = useCallback((id: string, v: any) => setAns(p => ({ ...p, [id]: v })),
                 );
               })}
             </div>
-            <div className="mt-6 flex justify-start">
-              <button disabled={!allSelected} onClick={() => { setDi(0); setStep(2); }}
-                className={`px-8 py-3 rounded-xl font-bold text-base transition-colors ${allSelected ? 'bg-blue-700 text-white hover:bg-blue-800 shadow-md' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
+            <div className="mt-6 flex items-start gap-4">
+              <button onClick={() => { setDi(0); setStep(2); }}
+                className="px-8 py-3 rounded-xl font-bold text-base transition-colors bg-blue-700 text-white hover:bg-blue-800 shadow-md">
                 המשך לבירור מול משפחה ←
               </button>
+              {!allSelected && (
+                <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 max-w-xs">
+                  ⚠️ לא כל התחומים סומנו — ניתן להמשיך, מומלץ להשלים
+                </p>
+              )}
             </div>
           </section>
         )}
