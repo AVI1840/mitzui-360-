@@ -1,5 +1,5 @@
 /**
- * מיצוי 360 — v4.1
+ * מיצוי 360 — v4.2
  * כלי מיצוי זכויות לפקידי ביטוח לאומי
  * 3 שלבים: בדיקות פקיד → שאלון למשפחה → ממצאים ומימוש
  * אין שמירת מידע אישי
@@ -60,7 +60,7 @@ const DDC: Section[] = [
       {id:'dm_cancel',text:'לשקול בקשה לביטול חוב?',at:'boolean',phase:'clerk',showIf:(a)=>a.dm_st==='יש חוב',info:'בפטירת ילד נכה — לשקול הכנת בקשה לביטול'},
     ],
     ars:[
-      {urg:'within30',cond:(a)=>a.dm_st==='יש חוב',text:(a)=>`חוב ${a.dm_amt?(a.dm_amt).toLocaleString()+' ₪':'(סכום לא ידוע)'} — גבייה מוקפאת 60 יום. ${a.dm_cancel?'להכין בקשה לביטול':'לתאם סדר תשלומים'}`,clerkNote:'בדוק אפשרות ביטול חוב'},
+      {urg:'within30',cond:(a)=>a.dm_st==='יש חוב',text:(a)=>`חוב ${a.dm_amt?(a.dm_amt).toLocaleString()+' ₪':'(סכום לא ידוע)'} — גבייה מוקפאת 60 יום. ${a.dm_cancel?'להכין בקשה לביטול':'לתאם סדר תשלומים'}`,clerkNote:'בפטירת ילד נכה — להכין בקשה לביטול חוב. בדוק אפשרות מחיקה מול מחלקת גבייה.'},
     ],
     trs:[{cond:(a)=>a.dm_st==='יש חוב'&&a.dm_amt>50000,text:'חוב מעל 50,000 ₪',fix:'תאם עם מחלקת גבייה'}],
   },
@@ -73,8 +73,8 @@ const DDC: Section[] = [
       {id:'is_vehicle',text:'שווי רכב (₪)',at:'number',phase:'family',info:'מהפטירה — הרכב לא נספר כפוסל זכאות'},
     ],
     ars:[
-      {urg:'urgent',cond:(a)=>a.is_st==='זכאי',text:(a)=>`זכאי להבטחת הכנסה — לעדכן תחשיב${a.is_emp!=='שניהם עובדים'?' + פטור 3 חודשים מלשכה':''}`,clerkNote:'עדכן תחשיב + בדוק פטור'},
-      {urg:'within30',cond:(a)=>a.is_st==='לבדיקה',text:'שינוי הרכב משפחה — לבדוק זכאות חדשה'},
+      {urg:'urgent',cond:(a)=>a.is_st==='זכאי',text:(a)=>`זכאי להבטחת הכנסה — לעדכן תחשיב${a.is_emp!=='שניהם עובדים'?' + פטור 3 חודשים מלשכה':''}`,clerkNote:'עדכן תחשיב הכנסה. בדוק פטור 3 חודשים מהתייצבות. רכב לא נספר כפוסל מהפטירה.'},
+      {urg:'within30',cond:(a)=>a.is_st==='לבדיקה',text:'לבדוק זכאות הבטחת הכנסה — ייתכן שינוי בעקבות הפטירה',clerkNote:'בדוק הכנסות, נכסים, מצב תעסוקתי. רכב לא פוסל.'},
       {urg:'within30',cond:(a)=>a.is_vehicle>0,text:(a)=>`רכב ${(a.is_vehicle||0).toLocaleString()} ₪ — לא נספר כפוסל מהפטירה`},
     ],
   },
@@ -103,8 +103,8 @@ const DDC: Section[] = [
       {id:'cs_knows',text:'המשפחה יודעת כיצד למשוך?',at:'boolean',phase:'family'},
     ],
     ars:[
-      {urg:'within30',cond:(a)=>!!a.cs_fund,text:(a)=>`טופס 5022 לקופה: ${a.cs_fund}`,clerkNote:'הדפס טופס 5022'},
-      {urg:'planning',cond:(a)=>a.cs_where==='בנק',text:'חסכונות ילדים בבנק — מומלץ העברה לקופת גמל רווחית יותר'},
+      {urg:'within30',cond:(a)=>!!a.cs_fund,text:(a)=>`טופס 5022 לקופה: ${a.cs_fund}. הפקדות ימשכו 3 חודשים מהפטירה.`,clerkNote:'הדפס טופס 5022. ודא שהמשפחה יודעת כיצד למשוך.'},
+      {urg:'planning',cond:(a)=>a.cs_where==='בנק',text:'חסכונות ילדים בבנק — מומלץ העברה לקופת גמל (תשואה גבוהה יותר, דמי ניהול נמוכים)',clerkNote:'הסבר למשפחה יתרונות קופת גמל מול בנק'},
     ],
   },
   { id:'pd', title:'נכות הורים ותוספת תלויים',
@@ -333,6 +333,7 @@ export default function App() {
   const [feedbackItems,setFeedbackItems]=useState<FEntry[]>([]);
   const [showFeedback,setShowFeedback]=useState(false);
   const [staffNotes,setStaffNotes]=useState('');
+  const [actionNotes,setActionNotes]=useState<Record<number,string>>({});
   const [auditCopied,setAuditCopied]=useState(false);
   const [counterSent,setCounterSent]=useState(false);
 
@@ -371,7 +372,7 @@ export default function App() {
   },[sections]);
 
   const sa = useCallback((id:string,v:any)=>setAns(p=>({...p,[id]:v})),[]);
-  const doReset = ()=>{setStep(0);setScenId(null);setAns({});setResetPending(false);setStaffNotes('');setCounterSent(false);};
+  const doReset = ()=>{setStep(0);setScenId(null);setAns({});setResetPending(false);setStaffNotes('');setActionNotes({});setCounterSent(false);};
   const today = new Date().toLocaleDateString('he-IL',{year:'numeric',month:'long',day:'numeric'});
   const urgCnt = actions.filter(a=>a.urg==='urgent').length;
 
@@ -396,7 +397,7 @@ export default function App() {
         <div className="max-w-5xl mx-auto flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl font-bold">360</div>
-            <div><h1 className="text-xl font-bold leading-none">מיצוי 360</h1><p className="text-blue-300 text-xs mt-0.5">כלי מיצוי זכויות — v4.1</p></div>
+            <div><h1 className="text-xl font-bold leading-none">מיצוי 360</h1><p className="text-blue-300 text-xs mt-0.5">כלי מיצוי זכויות — v4.2</p></div>
           </div>
           {step>0&&<button onClick={()=>resetPending?doReset():setResetPending(true)} onBlur={()=>setResetPending(false)} className={`text-sm px-4 py-2 rounded-lg font-medium ${resetPending?'bg-red-500 text-white':'bg-white/10 hover:bg-white/20 text-white'}`}>{resetPending?'⚠️ לחץ שוב':'↺ פגישה חדשה'}</button>}
         </div>
@@ -552,13 +553,17 @@ export default function App() {
               <h3 className="text-base font-bold mb-3 text-blue-900 border-b-2 border-blue-200 pb-2">פעולות נדרשות ({actions.length})</h3>
               {actions.length===0?<p className="text-gray-400 py-4 text-sm">לא נמצאו פעולות</p>:(
                 <div className="space-y-2">{actions.map((a,i)=>(
-                  <div key={i} className="bg-white rounded-xl border p-4 shadow-sm flex items-start gap-3">
-                    <div className={`shrink-0 w-2 h-2 rounded-full mt-2 ${uDot(a.urg)}`}/>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-0.5 flex-wrap"><span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${uClr(a.urg)}`}>{uLbl(a.urg)}</span><span className="text-xs text-gray-400">{a.tag}</span></div>
-                      <p className="font-medium text-sm text-gray-900">{a.text}</p>
-                      {a.clerkNote&&<p className="text-xs text-blue-700 mt-1 bg-blue-50 rounded px-2 py-1">📋 {a.clerkNote}</p>}
+                  <div key={i} className="bg-white rounded-xl border p-4 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className={`shrink-0 w-2 h-2 rounded-full mt-2 ${uDot(a.urg)}`}/>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-0.5 flex-wrap"><span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${uClr(a.urg)}`}>{uLbl(a.urg)}</span><span className="text-xs text-gray-400">{a.tag}</span></div>
+                        <p className="font-medium text-sm text-gray-900">{a.text}</p>
+                        {a.clerkNote&&<p className="text-xs text-blue-700 mt-1 bg-blue-50 rounded px-2 py-1">📋 {a.clerkNote}</p>}
+                      </div>
                     </div>
+                    <input type="text" value={actionNotes[i]??''} onChange={e=>{const v=e.target.value;setActionNotes(p=>({...p,[i]:v}));}} placeholder="הערת פקיד לפעולה זו..." className="no-print mt-2 w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-right focus:ring-1 focus:ring-blue-400 outline-none"/>
+                    {actionNotes[i]&&<p className="hidden print:block text-xs text-gray-600 mt-1">📝 {actionNotes[i]}</p>}
                   </div>
                 ))}</div>
               )}
@@ -590,15 +595,15 @@ export default function App() {
               </div>
             </div>
             <div className="mb-6 print-summary">
-              <h3 className="text-base font-bold mb-3 text-gray-800 border-b-2 border-gray-300 pb-2">הערות פקיד + ייצוא</h3>
+              <h3 className="text-base font-bold mb-3 text-gray-800 border-b-2 border-gray-300 pb-2">הערות כלליות + ייצוא</h3>
               <textarea value={staffNotes} onChange={e=>setStaffNotes(e.target.value)} rows={3} placeholder="הערות לתיעוד התיק..." className="w-full border rounded-lg px-3 py-2.5 text-sm text-right resize-none focus:ring-2 focus:ring-blue-500 outline-none mb-3 no-print"/>
               {staffNotes&&<p className="hidden print:block text-sm text-gray-700 mb-3 whitespace-pre-wrap">הערות: {staffNotes}</p>}
               <button onClick={()=>{
                 const t=['=== מיצוי 360 ===',scen?.name||'','תאריך: '+today,'',
                   'פעולות ('+actions.length+'):',
-                  ...actions.map((a,i)=>(i+1)+'. ['+uLbl(a.urg)+'] '+a.text+(a.clerkNote?' | '+a.clerkNote:'')),
+                  ...actions.map((a,i)=>(i+1)+'. ['+uLbl(a.urg)+'] '+a.text+(a.clerkNote?' | '+a.clerkNote:'')+(actionNotes[i]?' | הערה: '+actionNotes[i]:'')),
                   '','אזהרות:',...traps.map(t=>'- '+t.text+(t.fix?' → '+t.fix:'')),
-                  '','הערות:',staffNotes||'(ללא)','=== סוף ==='].join('\n');
+                  '','הערות כלליות:',staffNotes||'(ללא)','=== סוף ==='].join('\n');
                 navigator.clipboard.writeText(t).then(()=>{setAuditCopied(true);setTimeout(()=>setAuditCopied(false),2500);});
               }} className={`no-print w-full py-2.5 rounded-xl text-sm font-bold ${auditCopied?'bg-green-600 text-white':'bg-gray-800 text-white hover:bg-gray-900'}`}>
                 {auditCopied?'✓ הועתק!':'📋 ייצא ללוח'}
@@ -606,7 +611,7 @@ export default function App() {
             </div>
             <div className="border-t pt-4 text-xs text-gray-400 print-summary">
               <p>⚠️ <strong>אמת פרטים ב-btl.gov.il או *6050 לפני הגשה.</strong></p>
-              <p className="mt-1">מיצוי 360 v4.1 | {today} | אין שמירת מידע אישי</p>
+              <p className="mt-1">מיצוי 360 v4.2 | {today} | אין שמירת מידע אישי</p>
             </div>
             <div className="mt-6 no-print flex gap-3">
               <button onClick={()=>setStep(2)} className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium text-sm">→ שאלון משפחה</button>
